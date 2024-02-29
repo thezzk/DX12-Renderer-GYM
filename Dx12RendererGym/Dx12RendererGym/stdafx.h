@@ -88,16 +88,35 @@ D3D12_INDEX_BUFFER_VIEW indexBufferView;
 ID3D12Resource* depthStencilBuffer;
 ID3D12DescriptorHeap* dsDescriptorHeap;
 
-struct ConstantBuffer {
-	DirectX::XMFLOAT4 colorMultiplier;
+using namespace DirectX;
+struct ConstantBufferPerObject {
+	XMFLOAT4X4 wvpMat;
 };
 
-ID3D12DescriptorHeap* mainDescriptorHeap[frameBufferCount];
-ID3D12Resource* constantBufferUploadHeap[frameBufferCount];
+int ConstantBufferPerObjectAlignedSize = (sizeof(ConstantBufferPerObject) + 255) & ~255;
 
-ConstantBuffer cbColorMultiplierData;
+ConstantBufferPerObject cbPerObject;
 
-UINT8* cbColorMultiplierGPUAddress[frameBufferCount];
+ID3D12Resource* constantBufferUploadHeaps[frameBufferCount];
+
+UINT8* cbvGPUAddress[frameBufferCount];
+
+XMFLOAT4X4 cameraProjMat;
+XMFLOAT4X4 cameraViewMat;
+
+XMFLOAT4 cameraPosition;
+XMFLOAT4 cameraTarget;
+XMFLOAT4 cameraUp;
+
+XMFLOAT4X4 cube1WorldMat;
+XMFLOAT4X4 cube1RotMat;
+XMFLOAT4 cube1Position;
+
+XMFLOAT4X4 cube2WorldMat;
+XMFLOAT4X4 cube2RotMat;
+XMFLOAT4 cube2PositionOffset;
+
+int numCubeIndices;
 
 // functions
 bool InitD3D();
