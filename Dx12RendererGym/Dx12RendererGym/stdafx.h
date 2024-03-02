@@ -10,8 +10,10 @@
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include "d3dx12.h"
+#include <wincodec.h>
 
 #define SAFE_RELEASE(p) { if ( (p) ) {(p)->Release(); (p) = 0; } }
+using namespace DirectX;
 
 // Handle to the window
 HWND hwnd = NULL;
@@ -88,7 +90,6 @@ D3D12_INDEX_BUFFER_VIEW indexBufferView;
 ID3D12Resource* depthStencilBuffer;
 ID3D12DescriptorHeap* dsDescriptorHeap;
 
-using namespace DirectX;
 struct ConstantBufferPerObject {
 	XMFLOAT4X4 wvpMat;
 };
@@ -117,6 +118,17 @@ XMFLOAT4X4 cube2RotMat;
 XMFLOAT4 cube2PositionOffset;
 
 int numCubeIndices;
+
+ID3D12Resource* textureBuffer;
+
+int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int &bytesPerRow);
+
+DXGI_FORMAT GetDXGIFormatFromWICFormat(WICPixelFormatGUID& wicFormatGUID);
+WICPixelFormatGUID GetConvertToWICFormat(WICPixelFormatGUID& wicFormatGUID);
+int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat);
+
+ID3D12DescriptorHeap* mainDescriptorHeap;
+ID3D12Resource* textureBufferUploadHeap;
 
 // functions
 bool InitD3D();
