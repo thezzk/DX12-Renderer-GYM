@@ -49,6 +49,8 @@ LRESULT CALLBACK WndProc(HWND hWnd,
 // direct3d stuff
 const int frameBufferCount = 3; // Tripple buffer
 
+IDXGIFactory4* dxgiFactory;
+
 ID3D12Device* device;
 
 IDXGISwapChain3* swapChain;
@@ -63,6 +65,8 @@ ID3D12CommandAllocator* commandAllocator[frameBufferCount];
 
 ID3D12GraphicsCommandList* commandList;
 
+DXGI_SAMPLE_DESC sampleDesc;
+
 ID3D12Fence* fence[frameBufferCount];
 
 HANDLE fenceEvent;
@@ -72,6 +76,9 @@ UINT64 fenceValue[frameBufferCount];
 int frameIndex;
 
 int rtvDescriptorSize;
+
+D3D12_SHADER_BYTECODE vertexShaderBytecode;
+D3D12_SHADER_BYTECODE pixelShaderBytecode;
 
 ID3D12PipelineState* pipelineStateObject;
 
@@ -83,10 +90,13 @@ D3D12_RECT scissorRect;
 
 ID3D12Resource* vertexBuffer;
 D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+int vBufferSize;
 
 ID3D12Resource* indexBuffer;
 D3D12_INDEX_BUFFER_VIEW indexBufferView;
+int iBufferSize;
 
+D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc;
 ID3D12Resource* depthStencilBuffer;
 ID3D12DescriptorHeap* dsDescriptorHeap;
 
@@ -120,6 +130,7 @@ XMFLOAT4 cube2PositionOffset;
 int numCubeIndices;
 
 ID3D12Resource* textureBuffer;
+D3D12_RESOURCE_DESC textureDesc;
 
 int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int &bytesPerRow);
 
@@ -132,6 +143,18 @@ ID3D12Resource* textureBufferUploadHeap;
 
 // functions
 bool InitD3D();
+bool InitD3DDevice();
+bool InitCommandQueue();
+bool InitCommandAllocators();
+bool InitCommandList();
+bool InitFenceAndEvent();
+bool InitSwapChain();
+bool InitDescriptorHeaps();
+bool InitRootSignature();
+bool InitResources();
+bool InitViews();
+bool InitVSPS();
+bool InitPSO();
 
 void Update();
 
