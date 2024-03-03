@@ -9,11 +9,21 @@
 #include <dxgi1_4.h>
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
+#include <vector>
 #include "d3dx12.h"
-#include <wincodec.h>
+#include "ImageUtil.h"
+#include "OBJ_Loader.h"
+
 
 #define SAFE_RELEASE(p) { if ( (p) ) {(p)->Release(); (p) = 0; } }
 using namespace DirectX;
+
+struct Vertex
+{
+	Vertex(float x, float y, float z, float u, float v) : pos(x, y, z), texCoord(u, v) {}
+	XMFLOAT3 pos;
+	XMFLOAT2 texCoord;
+};
 
 // Handle to the window
 HWND hwnd = NULL;
@@ -134,9 +144,7 @@ D3D12_RESOURCE_DESC textureDesc;
 
 int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int &bytesPerRow);
 
-DXGI_FORMAT GetDXGIFormatFromWICFormat(WICPixelFormatGUID& wicFormatGUID);
-WICPixelFormatGUID GetConvertToWICFormat(WICPixelFormatGUID& wicFormatGUID);
-int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat);
+bool loadMesh(std::string objfileName, std::vector<Vertex>& vertexList, std::vector<DWORD>& indexList);
 
 ID3D12DescriptorHeap* mainDescriptorHeap;
 ID3D12Resource* textureBufferUploadHeap;

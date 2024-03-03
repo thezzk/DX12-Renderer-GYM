@@ -2,12 +2,7 @@
 
 using namespace DirectX;
 
-struct Vertex
-{
-    Vertex(float x, float y, float z, float u, float v) : pos(x, y, z), texCoord(u, v) {}
-    XMFLOAT3 pos;
-    XMFLOAT2 texCoord;
-};
+
 
 int WINAPI WinMain(HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
@@ -391,9 +386,9 @@ bool InitRootSignature()
     // create a static sampler
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     sampler.MipLODBias = 0;
     sampler.MaxAnisotropy = 0;
     sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -434,47 +429,16 @@ bool InitResources()
 {
     HRESULT hr;
 
+    std::vector<Vertex> vList;
+    std::vector<DWORD> iList;
+
+    if (!loadMesh("teapot.obj", vList, iList))
+    {
+        return false;
+    }
+
     // **Vertex Buffer**
-    Vertex vList[] = {
-        // front face
-        { -0.5f,  0.5f, -0.5f, 0.0f, 0.0f },
-        {  0.5f, -0.5f, -0.5f, 1.0f, 1.0f },
-        { -0.5f, -0.5f, -0.5f, 0.0f, 1.0f },
-        {  0.5f,  0.5f, -0.5f, 1.0f, 0.0f },
-
-        // right side face
-        {  0.5f, -0.5f, -0.5f, 0.0f, 1.0f },
-        {  0.5f,  0.5f,  0.5f, 1.0f, 0.0f },
-        {  0.5f, -0.5f,  0.5f, 1.0f, 1.0f },
-        {  0.5f,  0.5f, -0.5f, 0.0f, 0.0f },
-
-        // left side face
-        { -0.5f,  0.5f,  0.5f, 0.0f, 0.0f },
-        { -0.5f, -0.5f, -0.5f, 1.0f, 1.0f },
-        { -0.5f, -0.5f,  0.5f, 0.0f, 1.0f },
-        { -0.5f,  0.5f, -0.5f, 1.0f, 0.0f },
-
-        // back face
-        {  0.5f,  0.5f,  0.5f, 0.0f, 0.0f },
-        { -0.5f, -0.5f,  0.5f, 1.0f, 1.0f },
-        {  0.5f, -0.5f,  0.5f, 0.0f, 1.0f },
-        { -0.5f,  0.5f,  0.5f, 1.0f, 0.0f },
-
-        // top face
-        { -0.5f,  0.5f, -0.5f, 0.0f, 1.0f },
-        {  0.5f,  0.5f,  0.5f, 1.0f, 0.0f },
-        {  0.5f,  0.5f, -0.5f, 1.0f, 1.0f },
-        { -0.5f,  0.5f,  0.5f, 0.0f, 0.0f },
-
-        // bottom face
-        {  0.5f, -0.5f,  0.5f, 0.0f, 0.0f },
-        { -0.5f, -0.5f, -0.5f, 1.0f, 1.0f },
-        {  0.5f, -0.5f, -0.5f, 0.0f, 1.0f },
-        { -0.5f, -0.5f,  0.5f, 1.0f, 0.0f },
-
-    };
-
-    vBufferSize = sizeof(vList);
+    vBufferSize = vList.size() * sizeof(Vertex);
     CD3DX12_HEAP_PROPERTIES vertextHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC vertexHeapResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(vBufferSize);
     device->CreateCommittedResource(
@@ -499,7 +463,7 @@ bool InitResources()
     vBufferUploadHeap->SetName(L"Vertex Buffer Upload Resource Heap");
 
     D3D12_SUBRESOURCE_DATA vertexData = {};
-    vertexData.pData = reinterpret_cast<BYTE*>(vList);
+    vertexData.pData = reinterpret_cast<BYTE*>(vList.data());
     vertexData.RowPitch = vBufferSize;
     vertexData.SlicePitch = vBufferSize;
 
@@ -510,33 +474,8 @@ bool InitResources()
     commandList->ResourceBarrier(1, &vBufferBarrier);
 
     // **Index Buffer**
-    DWORD iList[] = {
-        // front face
-        0, 1, 2, 
-        0, 3, 1, 
-
-        // left face
-        4, 5, 6, 
-        4, 7, 5,
-
-        // right face
-        8, 9, 10, 
-        8, 11, 9,
-
-        // back face
-        12, 13, 14,
-        12, 15, 13,
-
-        // top face
-        16, 17, 18,
-        16, 19, 17,
-
-        // bottom face
-        20, 21, 22, 
-        20, 23, 21,
-    };
-    numCubeIndices = sizeof(iList) / sizeof(DWORD);
-    iBufferSize = sizeof(iList);
+    numCubeIndices = iList.size();
+    iBufferSize = iList.size() * sizeof(DWORD);
     
     CD3DX12_HEAP_PROPERTIES indexHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC indexHeapResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(iBufferSize);
@@ -562,7 +501,7 @@ bool InitResources()
     iBufferUploadHeap->SetName(L"Index Buffer Upload Resource Heap");
 
     D3D12_SUBRESOURCE_DATA indexData = {};
-    indexData.pData = reinterpret_cast<BYTE*>(iList);
+    indexData.pData = reinterpret_cast<BYTE*>(iList.data());
     indexData.RowPitch = iBufferSize;
     indexData.SlicePitch = iBufferSize;
 
@@ -899,7 +838,7 @@ bool InitD3D()
     XMMATRIX tmpMat = XMMatrixPerspectiveFovLH(3.14f* (45.f / 180.f), (float)Width / float(Height), 0.1f, 1000.f);
     XMStoreFloat4x4(&cameraProjMat, tmpMat);
     
-    cameraPosition = XMFLOAT4(0.0f, 2.0f, -4.0f, 0.0f);
+    cameraPosition = XMFLOAT4(0.0f, 2.0f, -40.0f, 0.0f);
     cameraTarget = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
     cameraUp = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
 
@@ -910,11 +849,11 @@ bool InitD3D()
     XMStoreFloat4x4(&cameraViewMat, tmpMat);
 
     // cubes start pos
-    // Cube1
-    cube1Position = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+    // Mesh
+    cube1Position = XMFLOAT4(0.0f, -7.0f, 0.0f, 0.0f);
     XMVECTOR posVec = XMLoadFloat4(&cube1Position);
     tmpMat = XMMatrixTranslationFromVector(posVec);
-    XMStoreFloat4x4(&cube1RotMat, XMMatrixIdentity());
+    XMStoreFloat4x4(&cube1RotMat, XMMatrixIdentity() * XMMatrixRotationX(3.14 * (270.0f/180.f)));
     XMStoreFloat4x4(&cube1WorldMat, tmpMat);
     //Cube2
     cube2PositionOffset = XMFLOAT4(1.5f, 0.0f, 0.0f, 0.0f);
@@ -930,11 +869,11 @@ bool InitD3D()
 void Update()
 {
     // cube1
-    XMMATRIX rotXMat = XMMatrixRotationX(0.0001f);
-    XMMATRIX rotYMat = XMMatrixRotationY(0.0002f);
-    XMMATRIX rotZMat = XMMatrixRotationZ(0.0003f);
+    //XMMATRIX rotXMat = XMMatrixRotationX(0.003f);
+    XMMATRIX rotYMat = XMMatrixRotationY(0.003f);
+    //XMMATRIX rotZMat = XMMatrixRotationZ(0.003f);
 
-    XMMATRIX rotMat = XMLoadFloat4x4(&cube1RotMat) * rotXMat * rotYMat * rotZMat;
+    XMMATRIX rotMat = XMLoadFloat4x4(&cube1RotMat) * rotYMat;
     XMStoreFloat4x4(&cube1RotMat, rotMat);
 
     XMMATRIX translationMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube1Position));
@@ -952,25 +891,25 @@ void Update()
     memcpy(cbvGPUAddress[frameIndex], &cbPerObject, sizeof(cbPerObject));
 
     // cube2
-    rotXMat = XMMatrixRotationX(0.0003f);
-    rotYMat = XMMatrixRotationY(0.0002f);
-    rotZMat = XMMatrixRotationZ(0.0001f);
+    //rotXMat = XMMatrixRotationX(0.0003f);
+    //rotYMat = XMMatrixRotationY(0.0002f);
+    //rotZMat = XMMatrixRotationZ(0.0001f);
 
-    //rotMat = rotZMat * (XMLoadFloat4x4(&cube2RotMat) * (rotXMat * rotYMat));
-    //XMStoreFloat4x4(&cube2RotMat, rotMat);
+    ////rotMat = rotZMat * (XMLoadFloat4x4(&cube2RotMat) * (rotXMat * rotYMat));
+    ////XMStoreFloat4x4(&cube2RotMat, rotMat);
 
-    XMMATRIX translateOffsetMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube2PositionOffset));
-    
-    XMMATRIX scaleMat = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+    //XMMATRIX translateOffsetMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube2PositionOffset));
+    //
+    //XMMATRIX scaleMat = XMMatrixScaling(0.5f, 0.5f, 0.5f);
 
-    worldMat = scaleMat * translateOffsetMat * rotMat * translationMat;
-    XMStoreFloat4x4(&cube2WorldMat, worldMat);
+    //worldMat = scaleMat * translateOffsetMat * rotMat * translationMat;
+    //XMStoreFloat4x4(&cube2WorldMat, worldMat);
 
-    wvpMat = XMLoadFloat4x4(&cube2WorldMat) * viewMat * projMat;
-    transposed = XMMatrixTranspose(wvpMat);
-    XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
+    //wvpMat = XMLoadFloat4x4(&cube2WorldMat) * viewMat * projMat;
+    //transposed = XMMatrixTranspose(wvpMat);
+    //XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
 
-    memcpy(cbvGPUAddress[frameIndex] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
+    //memcpy(cbvGPUAddress[frameIndex] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
 
 }
 
@@ -1025,8 +964,8 @@ void UpdatePipeline()
     commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
 
     // cube 2
-    commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress() + ConstantBufferPerObjectAlignedSize);
-    commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
+   // commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress() + ConstantBufferPerObjectAlignedSize);
+    //commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
 
 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1219,95 +1158,29 @@ int  LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescri
     return imageSize;
 }
 
-// get the dxgi format equivilent of a wic format
-DXGI_FORMAT GetDXGIFormatFromWICFormat(WICPixelFormatGUID& wicFormatGUID)
+bool loadMesh(std::string objfileName, std::vector<Vertex>& vertexList, std::vector<DWORD>& indexList)
 {
-    if (wicFormatGUID == GUID_WICPixelFormat128bppRGBAFloat) return DXGI_FORMAT_R32G32B32A32_FLOAT;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppRGBAHalf) return DXGI_FORMAT_R16G16B16A16_FLOAT;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppRGBA) return DXGI_FORMAT_R16G16B16A16_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppRGBA) return DXGI_FORMAT_R8G8B8A8_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppBGRA) return DXGI_FORMAT_B8G8R8A8_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppBGR) return DXGI_FORMAT_B8G8R8X8_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppRGBA1010102XR) return DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM;
+    objl::Loader loader;
+    bool loadout = loader.LoadFile(objfileName);
 
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppRGBA1010102) return DXGI_FORMAT_R10G10B10A2_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat16bppBGRA5551) return DXGI_FORMAT_B5G5R5A1_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat16bppBGR565) return DXGI_FORMAT_B5G6R5_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppGrayFloat) return DXGI_FORMAT_R32_FLOAT;
-    else if (wicFormatGUID == GUID_WICPixelFormat16bppGrayHalf) return DXGI_FORMAT_R16_FLOAT;
-    else if (wicFormatGUID == GUID_WICPixelFormat16bppGray) return DXGI_FORMAT_R16_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat8bppGray) return DXGI_FORMAT_R8_UNORM;
-    else if (wicFormatGUID == GUID_WICPixelFormat8bppAlpha) return DXGI_FORMAT_A8_UNORM;
+    if (!loadout || loader.LoadedMeshes.size() == 0)
+    {
+        return false;
+    }
+    objl::Mesh mesh = loader.LoadedMeshes[0];
+        
+    for (int i = 0; i < mesh.Vertices.size(); ++i)
+    {
+        Vertex v = {mesh.Vertices[i].Position.X, mesh.Vertices[i].Position.Y, mesh.Vertices[i].Position.Z, 
+            mesh.Vertices[i].TextureCoordinate.X, mesh.Vertices[i].TextureCoordinate.Y};
+        vertexList.push_back(v);
+    }
 
-    else return DXGI_FORMAT_UNKNOWN;
-}
+    for (int i = 0; i < mesh.Indices.size(); ++i)
+    {
+        indexList.push_back(mesh.Indices[i]);
+    }
 
-// get a dxgi compatible wic format from another wic format
-WICPixelFormatGUID GetConvertToWICFormat(WICPixelFormatGUID& wicFormatGUID)
-{
-    if (wicFormatGUID == GUID_WICPixelFormatBlackWhite) return GUID_WICPixelFormat8bppGray;
-    else if (wicFormatGUID == GUID_WICPixelFormat1bppIndexed) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat2bppIndexed) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat4bppIndexed) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat8bppIndexed) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat2bppGray) return GUID_WICPixelFormat8bppGray;
-    else if (wicFormatGUID == GUID_WICPixelFormat4bppGray) return GUID_WICPixelFormat8bppGray;
-    else if (wicFormatGUID == GUID_WICPixelFormat16bppGrayFixedPoint) return GUID_WICPixelFormat16bppGrayHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppGrayFixedPoint) return GUID_WICPixelFormat32bppGrayFloat;
-    else if (wicFormatGUID == GUID_WICPixelFormat16bppBGR555) return GUID_WICPixelFormat16bppBGRA5551;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppBGR101010) return GUID_WICPixelFormat32bppRGBA1010102;
-    else if (wicFormatGUID == GUID_WICPixelFormat24bppBGR) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat24bppRGB) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppPBGRA) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppPRGBA) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat48bppRGB) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat48bppBGR) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppBGRA) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppPRGBA) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppPBGRA) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat48bppRGBFixedPoint) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat48bppBGRFixedPoint) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppRGBAFixedPoint) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppBGRAFixedPoint) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppRGBFixedPoint) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppRGBHalf) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat48bppRGBHalf) return GUID_WICPixelFormat64bppRGBAHalf;
-    else if (wicFormatGUID == GUID_WICPixelFormat128bppPRGBAFloat) return GUID_WICPixelFormat128bppRGBAFloat;
-    else if (wicFormatGUID == GUID_WICPixelFormat128bppRGBFloat) return GUID_WICPixelFormat128bppRGBAFloat;
-    else if (wicFormatGUID == GUID_WICPixelFormat128bppRGBAFixedPoint) return GUID_WICPixelFormat128bppRGBAFloat;
-    else if (wicFormatGUID == GUID_WICPixelFormat128bppRGBFixedPoint) return GUID_WICPixelFormat128bppRGBAFloat;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppRGBE) return GUID_WICPixelFormat128bppRGBAFloat;
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppCMYK) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppCMYK) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat40bppCMYKAlpha) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat80bppCMYKAlpha) return GUID_WICPixelFormat64bppRGBA;
 
-#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8) || defined(_WIN7_PLATFORM_UPDATE)
-    else if (wicFormatGUID == GUID_WICPixelFormat32bppRGB) return GUID_WICPixelFormat32bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppRGB) return GUID_WICPixelFormat64bppRGBA;
-    else if (wicFormatGUID == GUID_WICPixelFormat64bppPRGBAHalf) return GUID_WICPixelFormat64bppRGBAHalf;
-#endif
-
-    else return GUID_WICPixelFormatDontCare;
-}
-
-// get the number of bits per pixel for a dxgi format
-int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat)
-{
-    if (dxgiFormat == DXGI_FORMAT_R32G32B32A32_FLOAT) return 128;
-    else if (dxgiFormat == DXGI_FORMAT_R16G16B16A16_FLOAT) return 64;
-    else if (dxgiFormat == DXGI_FORMAT_R16G16B16A16_UNORM) return 64;
-    else if (dxgiFormat == DXGI_FORMAT_R8G8B8A8_UNORM) return 32;
-    else if (dxgiFormat == DXGI_FORMAT_B8G8R8A8_UNORM) return 32;
-    else if (dxgiFormat == DXGI_FORMAT_B8G8R8X8_UNORM) return 32;
-    else if (dxgiFormat == DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM) return 32;
-
-    else if (dxgiFormat == DXGI_FORMAT_R10G10B10A2_UNORM) return 32;
-    else if (dxgiFormat == DXGI_FORMAT_B5G5R5A1_UNORM) return 16;
-    else if (dxgiFormat == DXGI_FORMAT_B5G6R5_UNORM) return 16;
-    else if (dxgiFormat == DXGI_FORMAT_R32_FLOAT) return 32;
-    else if (dxgiFormat == DXGI_FORMAT_R16_FLOAT) return 16;
-    else if (dxgiFormat == DXGI_FORMAT_R16_UNORM) return 16;
-    else if (dxgiFormat == DXGI_FORMAT_R8_UNORM) return 8;
-    else if (dxgiFormat == DXGI_FORMAT_A8_UNORM) return 8;
+    return true;
 }
