@@ -129,15 +129,11 @@ XMFLOAT4 cameraPosition;
 XMFLOAT4 cameraTarget;
 XMFLOAT4 cameraUp;
 
-XMFLOAT4X4 cube1WorldMat;
-XMFLOAT4X4 cube1RotMat;
-XMFLOAT4 cube1Position;
+XMFLOAT4X4 meshWorldMat;
+XMFLOAT4X4 meshRotMat;
+XMFLOAT4 meshPosition;
 
-XMFLOAT4X4 cube2WorldMat;
-XMFLOAT4X4 cube2RotMat;
-XMFLOAT4 cube2PositionOffset;
-
-int numCubeIndices;
+int numOfIndices;
 
 ID3D12Resource* textureBuffer;
 D3D12_RESOURCE_DESC textureDesc;

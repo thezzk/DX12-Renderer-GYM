@@ -474,7 +474,7 @@ bool InitResources()
     commandList->ResourceBarrier(1, &vBufferBarrier);
 
     // **Index Buffer**
-    numCubeIndices = iList.size();
+    numOfIndices = iList.size();
     iBufferSize = iList.size() * sizeof(DWORD);
     
     CD3DX12_HEAP_PROPERTIES indexHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -848,19 +848,13 @@ bool InitD3D()
     tmpMat = XMMatrixLookAtLH(cPos, cTarg, cUp);
     XMStoreFloat4x4(&cameraViewMat, tmpMat);
 
-    // cubes start pos
     // Mesh
-    cube1Position = XMFLOAT4(0.0f, -7.0f, 0.0f, 0.0f);
-    XMVECTOR posVec = XMLoadFloat4(&cube1Position);
+    meshPosition = XMFLOAT4(0.0f, -7.0f, 0.0f, 0.0f);
+    XMVECTOR posVec = XMLoadFloat4(&meshPosition);
     tmpMat = XMMatrixTranslationFromVector(posVec);
-    XMStoreFloat4x4(&cube1RotMat, XMMatrixIdentity() * XMMatrixRotationX(3.14 * (270.0f/180.f)));
-    XMStoreFloat4x4(&cube1WorldMat, tmpMat);
-    //Cube2
-    cube2PositionOffset = XMFLOAT4(1.5f, 0.0f, 0.0f, 0.0f);
-    posVec = XMLoadFloat4(&cube2PositionOffset) + XMLoadFloat4(&cube1Position);
-    tmpMat = XMMatrixTranslationFromVector(posVec);
-    XMStoreFloat4x4(&cube2RotMat, XMMatrixIdentity());
-    XMStoreFloat4x4(&cube2WorldMat, tmpMat);
+    XMStoreFloat4x4(&meshRotMat, XMMatrixIdentity() * XMMatrixRotationX(3.14 * (270.0f/180.f)));
+    XMStoreFloat4x4(&meshWorldMat, tmpMat);
+    
 
     return true;
 }
@@ -868,48 +862,26 @@ bool InitD3D()
 
 void Update()
 {
-    // cube1
     //XMMATRIX rotXMat = XMMatrixRotationX(0.003f);
     XMMATRIX rotYMat = XMMatrixRotationY(0.003f);
     //XMMATRIX rotZMat = XMMatrixRotationZ(0.003f);
 
-    XMMATRIX rotMat = XMLoadFloat4x4(&cube1RotMat) * rotYMat;
-    XMStoreFloat4x4(&cube1RotMat, rotMat);
+    XMMATRIX rotMat = XMLoadFloat4x4(&meshRotMat) * rotYMat;
+    XMStoreFloat4x4(&meshRotMat, rotMat);
 
-    XMMATRIX translationMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube1Position));
+    XMMATRIX translationMat = XMMatrixTranslationFromVector(XMLoadFloat4(&meshPosition));
 
     XMMATRIX worldMat = rotMat * translationMat;
 
-    XMStoreFloat4x4(&cube1WorldMat, worldMat);
+    XMStoreFloat4x4(&meshWorldMat, worldMat);
 
     XMMATRIX viewMat = XMLoadFloat4x4(&cameraViewMat);
     XMMATRIX projMat = XMLoadFloat4x4(&cameraProjMat);
-    XMMATRIX wvpMat = XMLoadFloat4x4(&cube1WorldMat) * viewMat * projMat;
+    XMMATRIX wvpMat = XMLoadFloat4x4(&meshWorldMat) * viewMat * projMat;
     XMMATRIX transposed = XMMatrixTranspose(wvpMat);
     XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
 
     memcpy(cbvGPUAddress[frameIndex], &cbPerObject, sizeof(cbPerObject));
-
-    // cube2
-    //rotXMat = XMMatrixRotationX(0.0003f);
-    //rotYMat = XMMatrixRotationY(0.0002f);
-    //rotZMat = XMMatrixRotationZ(0.0001f);
-
-    ////rotMat = rotZMat * (XMLoadFloat4x4(&cube2RotMat) * (rotXMat * rotYMat));
-    ////XMStoreFloat4x4(&cube2RotMat, rotMat);
-
-    //XMMATRIX translateOffsetMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube2PositionOffset));
-    //
-    //XMMATRIX scaleMat = XMMatrixScaling(0.5f, 0.5f, 0.5f);
-
-    //worldMat = scaleMat * translateOffsetMat * rotMat * translationMat;
-    //XMStoreFloat4x4(&cube2WorldMat, worldMat);
-
-    //wvpMat = XMLoadFloat4x4(&cube2WorldMat) * viewMat * projMat;
-    //transposed = XMMatrixTranspose(wvpMat);
-    //XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
-
-    //memcpy(cbvGPUAddress[frameIndex] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
 
 }
 
@@ -952,22 +924,17 @@ void UpdatePipeline()
 
     commandList->SetGraphicsRootDescriptorTable(1, mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-    // draw triangle
     commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &scissorRect);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
     commandList->IASetIndexBuffer(&indexBufferView);
     
-    // cube 1
+    // Render mesh
     commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress());
-    commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
+    commandList->DrawIndexedInstanced(numOfIndices, 1, 0, 0, 0);
 
-    // cube 2
-   // commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress() + ConstantBufferPerObjectAlignedSize);
-    //commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
-
-
+ 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     commandList->ResourceBarrier(1, &barrier);
 
