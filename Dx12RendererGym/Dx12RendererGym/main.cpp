@@ -359,6 +359,10 @@ bool InitRootSignature()
     rootCBVDescriptor.RegisterSpace = 0;
     rootCBVDescriptor.ShaderRegister = 0;
 
+    D3D12_ROOT_DESCRIPTOR rootLightCBVDescriptor;
+    rootLightCBVDescriptor.RegisterSpace = 0;
+    rootLightCBVDescriptor.ShaderRegister = 1;
+
     // descriptor range
     D3D12_DESCRIPTOR_RANGE descriptorTableRanges[1];
     descriptorTableRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -373,15 +377,19 @@ bool InitRootSignature()
     descriptorTable.pDescriptorRanges = &descriptorTableRanges[0];
 
     // create a root parameter and fill it out
-    D3D12_ROOT_PARAMETER rootParameters[2];
+    D3D12_ROOT_PARAMETER rootParameters[3];
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].Descriptor = rootCBVDescriptor;
-    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     // 2nd root param
     rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     rootParameters[1].DescriptorTable = descriptorTable;
     rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[2].Descriptor = rootLightCBVDescriptor;
+    rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     // create a static sampler
     D3D12_STATIC_SAMPLER_DESC sampler = {};
@@ -555,7 +563,37 @@ bool InitResources()
         hr = constantBufferUploadHeaps[i]->Map(0, &readRange, reinterpret_cast<void**>(&cbvGPUAddress[i]));
 
         memcpy(cbvGPUAddress[i], &cbPerObject, sizeof(cbPerObject));
-        memcpy(cbvGPUAddress[i] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
+
+        // Light data
+       hr = device->CreateCommittedResource(
+            &constantBufferUploadHeapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &constantBufferUploadHeapResourceDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&lightConstantBufferUploadHeaps[i]));
+        lightConstantBufferUploadHeaps[i]->SetName(L"Light Constant buffer Upload Resource Haep");
+
+        ZeroMemory(&lightConstant, sizeof(lightConstant));
+        lightConstant.ambientLight = XMFLOAT3(0.7f, 0.7f, 0.7f);
+    
+        lightConstant.pointLights[0].diffuseColor = XMFLOAT3(0.5f, 0.5f, 0);
+        lightConstant.pointLights[0].innerRadius = 50000.0f;
+        lightConstant.pointLights[0].outerRadius = 100000.0f;
+        lightConstant.pointLights[0].specularColor = XMFLOAT3(0.5f, 0.5f, 0.5f);
+        lightConstant.pointLights[0].specularPower = 50.f;
+        lightConstant.pointLights[0].position = XMFLOAT3(30.f, 30.f, -30.f);
+        lightConstant.pointLights[0].enable = true;
+        lightConstant.pointLights[1].enable = false;
+        lightConstant.pointLights[2].enable = false;
+
+
+        readRange = CD3DX12_RANGE(0, 0);
+
+        hr = lightConstantBufferUploadHeaps[i]->Map(0, &readRange, reinterpret_cast<void**>(&lightCBVGPUAddress[i]));
+
+        memcpy(lightCBVGPUAddress[i], &lightConstant, sizeof(lightConstant));
+
     }
 
     // **Texture buffer**
@@ -707,7 +745,8 @@ bool InitPSO()
     D3D12_INPUT_ELEMENT_DESC inputLayout[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
     };
 
     D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {};
@@ -878,9 +917,13 @@ void Update()
     XMMATRIX viewMat = XMLoadFloat4x4(&cameraViewMat);
     XMMATRIX projMat = XMLoadFloat4x4(&cameraProjMat);
     XMMATRIX wvpMat = XMLoadFloat4x4(&meshWorldMat) * viewMat * projMat;
+    XMMATRIX wMat = XMLoadFloat4x4(&meshWorldMat);
     XMMATRIX transposed = XMMatrixTranspose(wvpMat);
+    XMMATRIX wTransposed = XMMatrixTranspose(wMat);
+    XMStoreFloat4x4(&cbPerObject.wMat, wTransposed);
     XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
-
+    XMFLOAT3 cameraPos = XMFLOAT3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+    XMStoreFloat3(&cbPerObject.cameraPos, XMLoadFloat3(&cameraPos));
     memcpy(cbvGPUAddress[frameIndex], &cbPerObject, sizeof(cbPerObject));
 
 }
@@ -931,7 +974,10 @@ void UpdatePipeline()
     commandList->IASetIndexBuffer(&indexBufferView);
     
     // Render mesh
+    // Transrform
     commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress());
+    // Light
+    commandList->SetGraphicsRootConstantBufferView(2, lightConstantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress());
     commandList->DrawIndexedInstanced(numOfIndices, 1, 0, 0, 0);
 
  
@@ -1002,6 +1048,7 @@ void Cleanup()
     for (int i = 0; i < frameBufferCount; ++i)
     {
         SAFE_RELEASE(constantBufferUploadHeaps[i]);
+        SAFE_RELEASE(lightConstantBufferUploadHeaps[i]);
     }
 }
 
@@ -1139,7 +1186,8 @@ bool loadMesh(std::string objfileName, std::vector<Vertex>& vertexList, std::vec
     for (int i = 0; i < mesh.Vertices.size(); ++i)
     {
         Vertex v = {mesh.Vertices[i].Position.X, mesh.Vertices[i].Position.Y, mesh.Vertices[i].Position.Z, 
-            mesh.Vertices[i].TextureCoordinate.X, mesh.Vertices[i].TextureCoordinate.Y};
+            mesh.Vertices[i].TextureCoordinate.X, mesh.Vertices[i].TextureCoordinate.Y,
+            mesh.Vertices[i].Normal.X, mesh.Vertices[i].Normal.Y, mesh.Vertices[i].Normal.Z};
         vertexList.push_back(v);
     }
 

@@ -20,9 +20,11 @@ using namespace DirectX;
 
 struct Vertex
 {
-	Vertex(float x, float y, float z, float u, float v) : pos(x, y, z), texCoord(u, v) {}
+	Vertex(float x, float y, float z, float u, float v, float nx, float ny, float nz) :
+		pos(x, y, z), texCoord(u, v), normal(nx, ny, nz) {}
 	XMFLOAT3 pos;
 	XMFLOAT2 texCoord;
+	XMFLOAT3 normal;
 };
 
 // Handle to the window
@@ -111,16 +113,38 @@ ID3D12Resource* depthStencilBuffer;
 ID3D12DescriptorHeap* dsDescriptorHeap;
 
 struct ConstantBufferPerObject {
+	XMFLOAT4X4 wMat;
 	XMFLOAT4X4 wvpMat;
+	XMFLOAT3 cameraPos;
 };
+struct PointLightData {
+	XMFLOAT3 diffuseColor;
+	float x;
+	XMFLOAT3 specularColor;
+	float y;
+	XMFLOAT3 position;
+	float specularPower;
+	float innerRadius;
+	float outerRadius;
+	bool enable;
+};
+struct LightConstant {
+	XMFLOAT3 ambientLight;
+	float d;
+	PointLightData pointLights[3];
+};
+
 
 int ConstantBufferPerObjectAlignedSize = (sizeof(ConstantBufferPerObject) + 255) & ~255;
 
 ConstantBufferPerObject cbPerObject;
+LightConstant lightConstant;
 
 ID3D12Resource* constantBufferUploadHeaps[frameBufferCount];
+ID3D12Resource* lightConstantBufferUploadHeaps[frameBufferCount];
 
 UINT8* cbvGPUAddress[frameBufferCount];
+UINT8* lightCBVGPUAddress[frameBufferCount];
 
 XMFLOAT4X4 cameraProjMat;
 XMFLOAT4X4 cameraViewMat;
